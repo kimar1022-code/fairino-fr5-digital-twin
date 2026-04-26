@@ -46,6 +46,31 @@
 
 ## 🏗️ Architecture
 
+```mermaid
+flowchart TD
+    UI[RobotControlUI<br/>UI 자동 생성]
+    Mgr[RobotManager<br/>Mode: Sim/Real/Mirror]
+    Sim[SimulatedRobotController<br/>Unity ArticulationBody]
+    Real[FairinoRobotController<br/>FR5 SDK Wrapper]
+    IK[InverseKinematicsSolver<br/>DLS Jacobian]
+    Robot[(Fairino FR5<br/>192.168.58.2)]
+
+    UI --> Mgr
+    Mgr -->|SIM| Sim
+    Mgr -->|REAL| Real
+    Mgr -->|MIRROR| Sim
+    Mgr -->|MIRROR| Real
+    Sim --> IK
+    Real -->|XML-RPC<br/>Port 20003| Robot
+    Robot -.->|Joint Feedback| Real
+    Real -.->|Mirror Sync| Sim
+
+    classDef unity fill:#1a1a2e,stroke:#fff,color:#fff
+    classDef robot fill:#c41e3a,stroke:#fff,color:#fff
+    class UI,Mgr,Sim,Real,IK unity
+    class Robot robot
+```
+
 **핵심 설계 원칙**: Mirror 모드에서 Sim은 Real의 그림자. Sim의 자체 IK를 사용하지 않고 Real의 결과를 매 프레임 재생함으로써 시각적 일치를 보장합니다.
 
 ---
@@ -62,6 +87,25 @@
 ---
 
 ## 📁 Project Structure
+
+fairino-fr5-digital-twin/
+├── Assets/
+│   └── Scripts/
+│       └── RobotControl/
+│           ├── IRobotController.cs
+│           ├── RobotManager.cs
+│           ├── SimulatedRobotController.cs
+│           ├── FairinoRobotController.cs
+│           ├── InverseKinematicsSolver.cs
+│           ├── CoordinateConverter.cs
+│           ├── GripperController.cs
+│           └── RobotControlUI.cs
+├── docs/
+│   ├── DEVELOPMENT_LOG.md
+│   └── SETUP.md
+├── README.md
+├── LICENSE
+└── .gitignore
 
 ---
 
