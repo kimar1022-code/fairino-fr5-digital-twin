@@ -85,9 +85,9 @@ flowchart TD
 - **Robot SDK**: Fairino C# SDK (libfairino.dll)
 
 ---
-
 ## 📁 Project Structure
 
+```
 fairino-fr5-digital-twin/
 ├── Assets/
 │   └── Scripts/
@@ -107,8 +107,7 @@ fairino-fr5-digital-twin/
 ├── LICENSE
 └── .gitignore
 
----
-
+```
 ## 🚀 Getting Started
 
 ### Prerequisites
