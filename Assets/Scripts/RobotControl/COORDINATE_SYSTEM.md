@@ -147,14 +147,15 @@ return new Vector3(
 - **실로봇 모드(RealOnly)**: Fairino SDK가 정확한 IK 처리 ✅
 - **Mirror 모드**: `RobotManager.StartCartesianJog`가 early return으로 **실로봇만 JOG**하고, 시뮬은 `Update()`에서 실로봇 각도를 그대로 복사 → 완전 일치
 
-### 검증 현황 (SimOnly 한정)
+### 검증 현황
 
 Unity 6000.4.3f1, `JointConfig.rotationAxis = {x:0, y:-1, z:0}` 설정 기준입니다.
 
-| 항목 | 상태 |
-|---|---|
-| X / Y / Z 선형 JOG | 동작 확인 |
-| Rx / Ry / Rz 회전 JOG | 동작 및 **방향 일치** 확인 |
+| 항목 | 모드 | 상태 |
+|---|---|---|
+| X / Y / Z 선형 JOG | SimOnly | 동작 확인 |
+| Rx / Ry / Rz 회전 JOG | SimOnly | 동작 및 **방향 일치** 확인 |
+| 실로봇 연결 + Mirror 동기화 | Mirror | 동작 확인 |
 
 #### 회전 방향에 추가 부호 반전이 필요 없는 이유
 
