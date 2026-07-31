@@ -52,6 +52,13 @@ namespace RobotControl
         [Tooltip("한 번의 IK 해법당 최대 반복 횟수")]
         [Range(1, 30)] public int ikMaxIterations = 8;
 
+        [Tooltip("Cartesian JOG 명령 포즈가 실제 TCP에서 벌어질 수 있는 최대 거리(m). " +
+                 "도달 불가 방향으로 계속 JOG해도 목표가 무한히 도망가지 않게 막는다.")]
+        [Range(0.005f, 0.2f)] public float maxCmdDriftM = 0.05f;   // 50mm
+
+        [Tooltip("Cartesian JOG 명령 자세가 실제 TCP 자세에서 벌어질 수 있는 최대 각도(deg).")]
+        [Range(1f, 90f)] public float maxCmdDriftDeg = 15f;
+
         // ── 내부 상태 ─────────────────────────────────────────────────
         private float[] targetAngles;
         private float[] currentAngles;
@@ -73,6 +80,13 @@ namespace RobotControl
 
         // IK 솔버 (Cartesian JOG에서 사용)
         private InverseKinematicsSolver ikSolver;
+
+        // ── Cartesian JOG 명령 포즈 누적 (robot base frame 로컬) ──────
+        // 매 프레임 실제 TCP를 다시 읽으면 드라이브 지연이 목표에 되먹임되어
+        // 명령이 누적되지 않는다(제자리 걸음). 그래서 명령 포즈를 따로 들고 누적한다.
+        private Vector3 cmdLocalPos;
+        private Quaternion cmdLocalRot;
+        private bool cmdInitialized = false;
 
         // ── IRobotController 기본 구현 ───────────────────────────────
         public bool IsReady => true;
@@ -295,6 +309,17 @@ namespace RobotControl
             StopJog();
             jogAxis = axis;            // 0~5 = X/Y/Z/Rx/Ry/Rz
             jogDir = dir;
+
+            // JOG 시작 시점의 실제 TCP 포즈로 명령 포즈를 초기화.
+            // 이후 프레임에서는 실제 위치를 읽지 않고 이 값에만 누적한다.
+            if (tcpTransform != null)
+            {
+                Transform baseTf = this.transform;
+                cmdLocalPos = baseTf.InverseTransformPoint(tcpTransform.position);
+                cmdLocalRot = Quaternion.Inverse(baseTf.rotation) * tcpTransform.rotation;
+                cmdInitialized = true;
+            }
+
             jogCoroutine = StartCoroutine(JogLoop(isCartesian: true));
         }
 
@@ -310,6 +335,9 @@ namespace RobotControl
         {
             if (jogCoroutine != null) { StopCoroutine(jogCoroutine); jogCoroutine = null; }
             jogAxis = -1; jogDir = 0;
+
+            // 다음 JOG는 그 시점의 실제 TCP에서 다시 시작하도록 명령 포즈를 무효화
+            cmdInitialized = false;
 
             // SmoothDamp 속도 리셋 (다음 JOG가 0에서 다시 부드럽게 시작되도록)
             if (smoothVelocities != null)
@@ -337,14 +365,16 @@ namespace RobotControl
                         continue;
                     }
 
-                    // 현재 TCP 포즈 (RobotRoot 로컬 기준 = 로봇 base frame)
                     Transform baseTf = this.transform;
-                    Vector3 currLocalPos = baseTf.InverseTransformPoint(tcpTransform.position);
-                    Quaternion currLocalRot = Quaternion.Inverse(baseTf.rotation) * tcpTransform.rotation;
 
-                    // 한 스텝 이동량 계산 (로봇 base frame 기준)
-                    Vector3 targetLocalPos = currLocalPos;
-                    Quaternion targetLocalRot = currLocalRot;
+                    // 명령 포즈가 초기화 안 됐으면 현재 TCP로 한 번만 맞춘다.
+                    if (!cmdInitialized)
+                    {
+                        cmdLocalPos = baseTf.InverseTransformPoint(tcpTransform.position);
+                        cmdLocalRot = Quaternion.Inverse(baseTf.rotation) * tcpTransform.rotation;
+                        cmdInitialized = true;
+                    }
+                    // ★ 실제 TCP를 다시 읽지 않는다. 명령 포즈에만 누적한다.
 
                     if (axis < 3)
                     {
@@ -362,7 +392,7 @@ namespace RobotControl
                         else if (axis == 1) localDir = -Vector3.right; // Robot Y → Unity -X
                         else if (axis == 2) localDir = Vector3.up;     // Robot Z → Unity Y
 
-                        targetLocalPos += localDir * stepM;
+                        cmdLocalPos += localDir * stepM;
                     }
                     else
                     {
@@ -376,16 +406,33 @@ namespace RobotControl
                         else if (axis == 5) localAxis = Vector3.up;     // Robot Rz → Unity Y
 
                         Quaternion deltaRot = Quaternion.AngleAxis(stepDeg, localAxis);
-                        // 월드 기준 회전 누적: new = delta * current
-                        targetLocalRot = deltaRot * currLocalRot;
+                        // base frame 기준 회전 누적: new = delta * old
+                        cmdLocalRot = deltaRot * cmdLocalRot;
                     }
 
-                    // 목표 포즈를 월드 좌표로 환산
-                    Vector3 targetWorldPos = baseTf.TransformPoint(targetLocalPos);
-                    Quaternion targetWorldRot = baseTf.rotation * targetLocalRot;
+                    // ── 안전장치: 명령 포즈 드리프트 제한 ────────────────
+                    // 특이점/관절한계/작업영역 밖 방향으로 계속 JOG하면 로봇은 못 따라가는데
+                    // 명령 포즈만 무한히 멀어진다. 그 상태로 두면 관절이 한계까지 밀려
+                    // 비틀린 자세로 버티게 되므로, 실제 TCP에서 일정 거리 이상 벌어지지 않게 잡는다.
+                    // (v2는 해석해 IK가 null을 반환할 때 롤백하지만, DLS는 항상 근사해를 내므로
+                    //  롤백 트리거가 없다. 대신 거리로 제한한다.)
+                    Vector3 actualLocalPos = baseTf.InverseTransformPoint(tcpTransform.position);
+                    Vector3 drift = cmdLocalPos - actualLocalPos;
+                    if (drift.magnitude > maxCmdDriftM)
+                        cmdLocalPos = actualLocalPos + drift.normalized * maxCmdDriftM;
+
+                    // 자세도 동일하게 제한 (회전만 누적되어 관절이 비틀리는 것을 막는다)
+                    Quaternion actualLocalRot = Quaternion.Inverse(baseTf.rotation) * tcpTransform.rotation;
+                    if (Quaternion.Angle(actualLocalRot, cmdLocalRot) > maxCmdDriftDeg)
+                        cmdLocalRot = Quaternion.RotateTowards(actualLocalRot, cmdLocalRot, maxCmdDriftDeg);
+
+                    // 명령 포즈를 월드 좌표로 환산
+                    Vector3 targetWorldPos = baseTf.TransformPoint(cmdLocalPos);
+                    Quaternion targetWorldRot = baseTf.rotation * cmdLocalRot;
 
                     // IK 풀기
                     float[] newAngles = ikSolver.Solve(currentAngles, targetWorldPos, targetWorldRot);
+
 
                     // 결과 적용 — Global Speed에 따라 각 조인트 속도 제한
                     // 각 조인트당 최대 각속도 = 180°/s × speedMul
