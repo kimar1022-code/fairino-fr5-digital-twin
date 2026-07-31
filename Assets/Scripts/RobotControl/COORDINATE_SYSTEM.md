@@ -141,13 +141,49 @@ return new Vector3(
 
 ## 💡 Cartesian JOG에 대한 주의
 
-**시뮬레이션의 Cartesian JOG는 근사적**입니다. Unity에는 기본 IK 솔버가 없어서 정확한 데카르트 제어는 실로봇 연결 시에만 작동합니다.
+시뮬레이션의 Cartesian JOG는 자체 DLS IK 솔버(`InverseKinematicsSolver`)로 동작합니다. 실로봇은 Fairino SDK가 펌웨어에서 IK를 처리하므로, 두 경로는 **서로 다른 운동학 구현**입니다.
 
-- **시뮬 모드(SimOnly)**: Cartesian JOG 버튼 = 시각적 참고용 (관련 조인트만 움직임)
-- **실로봇 모드(RealOnly)**: Cartesian JOG 버튼 = SDK가 정확한 IK 처리 ✅
-- **Mirror 모드**: 시뮬이 근사로 움직이고, 실로봇이 정확히 움직임 → 살짝 다르게 보일 수 있음
+- **시뮬 모드(SimOnly)**: Unity DLS IK가 처리 — X/Y/Z 선형 JOG 동작 확인됨
+- **실로봇 모드(RealOnly)**: Fairino SDK가 정확한 IK 처리 ✅
+- **Mirror 모드**: `RobotManager.StartCartesianJog`가 early return으로 **실로봇만 JOG**하고, 시뮬은 `Update()`에서 실로봇 각도를 그대로 복사 → 완전 일치
 
-정확한 Cartesian 시뮬이 필요하면 Unity Robotics Hub의 **Inverse Kinematics 패키지** 통합을 고려하세요.
+### 검증 현황
+
+Unity 6000.4.3f1, `JointConfig.rotationAxis = {x:0, y:-1, z:0}` 설정 기준입니다.
+
+| 항목 | 모드 | 상태 |
+|---|---|---|
+| X / Y / Z 선형 JOG | SimOnly | 동작 확인 |
+| Rx / Ry / Rz 회전 JOG | SimOnly | 동작 및 **방향 일치** 확인 |
+| 실로봇 연결 + Mirror 동기화 | Mirror | 동작 확인 |
+
+#### 회전 방향에 추가 부호 반전이 필요 없는 이유
+
+Unity는 left-handed, FR5는 right-handed이므로 회전 방향을 뒤집어야 할 것처럼 보이지만, **축 매핑 행렬 자체가 이미 방향 반전 사상**입니다.
+
+```
+Robot X → Unity  Z  = ( 0, 0, 1)          | 0  -1   0 |
+Robot Y → Unity -X  = (-1, 0, 0)   det M = | 0   0   1 | = -1
+Robot Z → Unity  Y  = ( 0, 1, 0)          | 1   0   0 |
+```
+
+행렬식이 −1이면 그 사상이 방향을 뒤집으므로, 좌표계 손잡이 차이와 서로 상쇄됩니다. 따라서 `SimulatedRobotController.JogLoop`의 회전 분기는 축 교체만 하면 되고, 별도 부호 반전을 넣으면 오히려 방향이 뒤집힙니다.
+
+`CoordinateConverter.UnityRotationToRobotRPY`가 `-x,-y,-z` 반전을 하는 것은 쿼터니언 성분 재배치(`qz, -qx, qy, qw`)라는 다른 방식을 쓰기 때문이며, 이 경로와 요구사항이 다릅니다. **두 경로를 같은 규칙으로 다루면 안 됩니다.**
+
+#### `rotationAxis` 값
+
+Unity Revolute 관절은 앵커 프레임의 X축을 회전축으로 삼습니다. 6축 모두 `ArticulationBody.anchorRotation`이 Z축 −90°이므로 회전축은 다음과 같습니다.
+
+```
+R(-90°, Z) · (1, 0, 0) = (0, -1, 0)
+```
+
+이 값으로 설정했을 때 선형·회전 JOG가 모두 정상 동작합니다. 값이 틀리면 IK 내부 FK가 6축을 같은 축으로 돌리게 되어 Jacobian의 열이 거의 평행해지고, 팔이 부채 접히듯 안으로 말립니다.
+
+> 씬 파일은 이 저장소에 포함되지 않으므로 위 값은 프로젝트에서 직접 설정해야 합니다.
+
+> **참고**: 위 항목은 SimOnly 모드에만 해당합니다. Mirror/Real 모드는 Unity IK 경로를 타지 않습니다.
 
 ---
 
