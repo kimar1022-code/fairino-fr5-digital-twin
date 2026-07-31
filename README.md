@@ -183,12 +183,10 @@ Mirror에서 Sim IK를 끈 결과 SIM 단독 모드의 Cartesian JOG는 검증 �
 - [x] **Phase 2**: DLS Jacobian IK 솔버 구현
 - [x] **Phase 3**: Mirror 동기화 패턴 설계
 - [x] **Phase 4**: UI 자동 생성 + Pose Slot
-- [x] **Phase 5**: SIM 단독 Cartesian JOG — X/Y/Z 선형 이동 확인
-- [ ] **Phase 6**: Rx/Ry/Rz 회전 JOG 검증 — 실동작 미확인
-- [ ] **Phase 7**: `rotationAxis` 설정값 검증 — 씬 값과 `ArticulationBody.anchorRotation` 불일치 확인 필요
-- [ ] **Phase 8**: J5 시각적 불일치 해결
-- [ ] **Phase 9**: 궤적 녹화/재생 기능
-- [ ] **Phase 10**: 충돌 검출 시스템
+- [x] **Phase 5**: SIM 단독 Cartesian JOG — X/Y/Z 선형 + Rx/Ry/Rz 회전 방향 확인
+- [ ] **Phase 6**: J5 시각적 불일치 해결
+- [ ] **Phase 7**: 궤적 녹화/재생 기능
+- [ ] **Phase 8**: 충돌 검출 시스템
 
 ---
 
