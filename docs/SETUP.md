@@ -6,7 +6,7 @@
 
 ### 필수
 - **Unity Hub**
-- **Unity 6000.0.64f1** (정확한 버전 권장)
+- **Unity 6000.4.3f1** (정확한 버전 권장)
 - **Visual Studio 2022** 또는 **JetBrains Rider** (C# IDE)
 - **Git** (버전 관리)
 
@@ -148,7 +148,7 @@ ping 192.168.58.2
 
 ### URDF Importer가 안 보임
 - Package Manager에서 재설치
-- Unity 6000.0.64f1 호환 버전 확인
+- Unity 6000.4.3f1 호환 버전 확인
 
 ### 네트워크 연결 안 됨
 - PC IP가 192.168.58.100인지 확인
