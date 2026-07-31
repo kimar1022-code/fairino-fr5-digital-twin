@@ -141,13 +141,31 @@ return new Vector3(
 
 ## 💡 Cartesian JOG에 대한 주의
 
-**시뮬레이션의 Cartesian JOG는 근사적**입니다. Unity에는 기본 IK 솔버가 없어서 정확한 데카르트 제어는 실로봇 연결 시에만 작동합니다.
+시뮬레이션의 Cartesian JOG는 자체 DLS IK 솔버(`InverseKinematicsSolver`)로 동작합니다. 실로봇은 Fairino SDK가 펌웨어에서 IK를 처리하므로, 두 경로는 **서로 다른 운동학 구현**입니다.
 
-- **시뮬 모드(SimOnly)**: Cartesian JOG 버튼 = 시각적 참고용 (관련 조인트만 움직임)
-- **실로봇 모드(RealOnly)**: Cartesian JOG 버튼 = SDK가 정확한 IK 처리 ✅
-- **Mirror 모드**: 시뮬이 근사로 움직이고, 실로봇이 정확히 움직임 → 살짝 다르게 보일 수 있음
+- **시뮬 모드(SimOnly)**: Unity DLS IK가 처리 — X/Y/Z 선형 JOG 동작 확인됨
+- **실로봇 모드(RealOnly)**: Fairino SDK가 정확한 IK 처리 ✅
+- **Mirror 모드**: `RobotManager.StartCartesianJog`가 early return으로 **실로봇만 JOG**하고, 시뮬은 `Update()`에서 실로봇 각도를 그대로 복사 → 완전 일치
 
-정확한 Cartesian 시뮬이 필요하면 Unity Robotics Hub의 **Inverse Kinematics 패키지** 통합을 고려하세요.
+### ⚠️ 현재 알려진 제약 (SimOnly 한정)
+
+| 항목 | 상태 |
+|---|---|
+| X / Y / Z 선형 JOG | ✅ 동작 |
+| Rx / Ry / Rz 회전 JOG | ⚠️ **회전 방향이 로봇 규약과 반대** |
+| 씬의 `JointConfig.rotationAxis` | ⚠️ 6축 모두 `{1,0,0}`으로 오설정 |
+
+**회전 방향 반전**: Unity는 left-handed, FR5는 right-handed입니다. `CoordinateConverter.UnityRotationToRobotRPY`는 축 교체 후 부호를 반전하지만(`-x,-y,-z`), `SimulatedRobotController.JogLoop`의 회전 분기는 축 교체만 하고 이 반전을 하지 않습니다. **축 방향 자체는 이 문서의 규약과 일치**하며, 도는 방향만 뒤집혀 있습니다.
+
+**`rotationAxis` 오설정**: 올바른 값은 `{x:0, y:-1, z:0}`입니다. Unity의 Revolute 관절은 앵커 프레임의 X축을 중심으로 회전하는데, 6축 모두 `anchorRotation`이 Z축 −90°이므로 다음이 성립합니다.
+
+```
+R(-90°, Z) · (1, 0, 0) = (0, -1, 0)
+```
+
+이 값이 틀리면 IK 내부 FK가 6축을 같은 축으로 돌리게 되어 Jacobian의 열이 거의 평행해지고, 팔이 부채 접히듯 **안으로 말리는** 움직임이 나옵니다. 씬 파일은 저장소에 포함되지 않으므로 프로젝트에서 직접 수정하거나, `ArticulationBody.anchorRotation`에서 축을 자동 감지하는 폴백을 추가해야 합니다.
+
+> **주의**: 실로봇 연결 시에는 위 제약이 적용되지 않습니다. Mirror/Real 모드는 Unity IK 경로를 타지 않습니다.
 
 ---
 

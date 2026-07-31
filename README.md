@@ -142,6 +142,7 @@ git clone https://github.com/kimar1022-code/fairino-fr5-digital-twin.git
 | **MoveJ DescPose Zero 에러** | DescPose=(0,...) 시 IK 실패 | DescPose 인자 없는 오버로드 사용 |
 | **조인트 간 간섭 (Critical)** | targetJointAngles 미동기화 | 변경 안 하는 관절을 현재 실측값으로 동기화 |
 | **Cartesian JOG Sim/Real 불일치** | URDF DLS IK ≠ SDK IK | Mirror 모드에서 Sim IK 비활성화 |
+| **SIM 모드 Cartesian JOG 무반응** | 명령 포즈 미누적 + 수렴 허용치 > JOG 스텝 | 명령 포즈 누적 구조로 변경, 허용치 하향 |
 
 ### 🔑 가장 큰 발견: Sim은 Real의 그림자
 
@@ -157,6 +158,48 @@ void Update()
 ```
 
 Sim 자체 IK를 쓰면 URDF와 실로봇 운동학이 미묘하게 달라 카티시안 JOG에서 Sim/Real이 어긋났습니다. Sim의 IK를 비활성화하고 Real의 결과를 매 프레임 따라가게 함으로써 완벽한 시각적 동기화를 달성했습니다.
+
+### 🔧 SIM 모드 Cartesian JOG 수정
+
+위 "Sim은 Real의 그림자" 설계의 부작용으로, **SIM 단독 모드의 Cartesian JOG는 실제로 동작한 적이 없었습니다.** 실로봇 연결 시 `RobotManager.StartCartesianJog`가 early return으로 SDK에 위임하므로 Unity IK 경로가 실행되지 않아, 문제가 드러나지 않은 채 남아 있었습니다.
+
+**원인 1 — 명령 포즈가 누적되지 않음**
+
+매 프레임 실제 TCP 위치를 다시 읽어 목표를 `현재 + 스텝`으로 만들었습니다. 드라이브 지연이 목표에 되먹임되어 명령이 쌓이지 않고 제자리에 머뭅니다.
+
+```csharp
+// Before — 매 프레임 실제 위치 재읽기
+Vector3 currLocalPos = baseTf.InverseTransformPoint(tcpTransform.position);
+Vector3 targetLocalPos = currLocalPos + localDir * stepM;
+
+// After — 명령 포즈에만 누적 (JOG 시작 시 1회 초기화)
+cmdLocalPos += localDir * stepM;
+```
+
+**원인 2 — 수렴 허용치가 JOG 스텝보다 큼**
+
+```
+프레임당 이동량 = jogLinearSpeed(10) × speedMul(0.5) × dt(1/60) = 0.083mm
+positionTolerance = 1mm     ← 12배 큼
+```
+
+`Solve()`가 첫 반복에서 수렴으로 판정하고 각도를 그대로 반환했습니다. 허용치를 `0.01mm` / `0.0001rad`로 낮췄습니다.
+
+**안전장치**
+
+명령 포즈가 도달 불가 방향으로 무한 누적되면 관절이 한계까지 밀려 비틀린 자세로 버팁니다. 실제 TCP 기준 **위치 50mm / 자세 15°** 이내로 제한했습니다 (`maxCmdDriftM`, `maxCmdDriftDeg`).
+
+### ⚠️ SIM Cartesian의 알려진 제약
+
+| 항목 | 상태 |
+|---|---|
+| X / Y / Z 선형 JOG | ✅ 동작 확인 |
+| Rx / Ry / Rz 회전 JOG | ⚠️ **방향이 로봇 규약과 반대** |
+| 씬의 `JointConfig.rotationAxis` | ⚠️ 6축 모두 `{1,0,0}`으로 오설정 |
+
+**회전 방향 반전**: Unity는 left-handed, FR5는 right-handed입니다. `CoordinateConverter.UnityRotationToRobotRPY`는 축 교체 후 부호를 반전하지만(`-x,-y,-z`), `JogLoop`의 회전 분기는 축 교체만 하고 이 반전을 하지 않습니다. 축 방향 자체는 규약과 일치합니다.
+
+**`rotationAxis` 오설정**: 올바른 값은 `{x:0, y:-1, z:0}`입니다. Unity의 Revolute 관절은 앵커 프레임의 X축을 중심으로 도는데, 6축 모두 `anchorRotation`이 Z축 −90°이므로 `R(-90°,Z)·(1,0,0) = (0,-1,0)`이 됩니다. 씬 파일은 저장소에 포함되지 않으므로 프로젝트에서 직접 수정하거나, `ArticulationBody.anchorRotation`에서 축을 자동 감지하는 폴백을 추가해야 합니다.
 
 ---
 
