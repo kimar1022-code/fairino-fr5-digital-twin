@@ -159,9 +159,9 @@ void Update()
 
 Sim 자체 IK를 쓰면 URDF와 실로봇 운동학이 미묘하게 달라 카티시안 JOG에서 Sim/Real이 어긋났습니다. Sim의 IK를 비활성화하고 Real의 결과를 매 프레임 따라가게 함으로써 완벽한 시각적 동기화를 달성했습니다.
 
-### 🔧 그 대가: SIM 단독 Cartesian은 미구현으로 남았다
+### 🔧 그 대가: SIM 단독 Cartesian은 미완성으로 남았다
 
-Mirror에서 Sim IK를 끈 결과, **SIM 단독 모드의 Cartesian JOG는 한 번도 실행되지 않아** 결함이 드러나지 않았습니다. 원인은 두 가지였습니다.
+Mirror에서 Sim IK를 끈 결과 SIM 단독 모드의 Cartesian JOG는 검증 대상에서 빠졌고, 실제로 눌러보니 로봇이 움직이지 않았습니다. 원인은 두 가지였습니다.
 
 ```csharp
 // 1. 매 프레임 실제 TCP를 다시 읽어 명령이 누적되지 않음 → 제자리 걸음
@@ -183,9 +183,9 @@ Mirror에서 Sim IK를 끈 결과, **SIM 단독 모드의 Cartesian JOG는 한 �
 - [x] **Phase 2**: DLS Jacobian IK 솔버 구현
 - [x] **Phase 3**: Mirror 동기화 패턴 설계
 - [x] **Phase 4**: UI 자동 생성 + Pose Slot
-- [x] **Phase 5**: SIM 단독 Cartesian JOG 동작 (X/Y/Z 선형 확인)
-- [ ] **Phase 6**: Rx/Ry/Rz 회전 방향 반전 수정 — Unity(left-handed) ↔ FR5(right-handed) 부호 반전이 `JogLoop` 회전 분기에 누락
-- [ ] **Phase 7**: `rotationAxis` 자동 감지 — 씬 값 대신 `ArticulationBody.anchorRotation`에서 유도 (현재 씬은 6축 모두 `{1,0,0}`로 오설정, 올바른 값은 `{0,-1,0}`)
+- [x] **Phase 5**: SIM 단독 Cartesian JOG — X/Y/Z 선형 이동 확인
+- [ ] **Phase 6**: Rx/Ry/Rz 회전 JOG 검증 — 실동작 미확인
+- [ ] **Phase 7**: `rotationAxis` 설정값 검증 — 씬 값과 `ArticulationBody.anchorRotation` 불일치 확인 필요
 - [ ] **Phase 8**: J5 시각적 불일치 해결
 - [ ] **Phase 9**: 궤적 녹화/재생 기능
 - [ ] **Phase 10**: 충돌 검출 시스템
