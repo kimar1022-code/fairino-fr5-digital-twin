@@ -149,27 +149,38 @@ return new Vector3(
 
 ### 검증 현황 (SimOnly 한정)
 
+Unity 6000.4.3f1, `JointConfig.rotationAxis = {x:0, y:-1, z:0}` 설정 기준입니다.
+
 | 항목 | 상태 |
 |---|---|
-| X / Y / Z 선형 JOG | 동작 확인 (Unity 6000.4.3f1) |
-| Rx / Ry / Rz 회전 JOG | **미검증** |
-| 씬 `JointConfig.rotationAxis` | **검증 필요** — 아래 참조 |
+| X / Y / Z 선형 JOG | 동작 확인 |
+| Rx / Ry / Rz 회전 JOG | 동작 및 **방향 일치** 확인 |
 
-#### 확인이 필요한 사항 두 가지
+#### 회전 방향에 추가 부호 반전이 필요 없는 이유
 
-아래는 **코드 분석에서 나온 의심 사항이며, 실제 동작으로 확인된 내용이 아닙니다.** 회전 JOG를 사용하기 전에 검증하시기 바랍니다.
+Unity는 left-handed, FR5는 right-handed이므로 회전 방향을 뒤집어야 할 것처럼 보이지만, **축 매핑 행렬 자체가 이미 방향 반전 사상**입니다.
 
-**1. 회전 방향** — 이 문서 상단대로 Unity는 left-handed, FR5는 right-handed입니다. `CoordinateConverter.UnityRotationToRobotRPY`는 축 교체 후 부호를 반전하는데(`-x,-y,-z`), `SimulatedRobotController.JogLoop`의 회전 분기에는 그에 대응하는 처리가 보이지 않습니다. 축 방향 매핑 자체는 이 문서의 규약과 일치합니다. 실제로 방향이 뒤집히는지는 **확인되지 않았습니다.**
+```
+Robot X → Unity  Z  = ( 0, 0, 1)          | 0  -1   0 |
+Robot Y → Unity -X  = (-1, 0, 0)   det M = | 0   0   1 | = -1
+Robot Z → Unity  Y  = ( 0, 1, 0)          | 1   0   0 |
+```
 
-**2. `rotationAxis` 값** — 씬에는 6축 모두 `{x:1, y:0, z:0}`으로 설정되어 있습니다. 한편 6축의 `ArticulationBody.anchorRotation`은 모두 Z축 −90°이고, Unity Revolute 관절은 앵커 프레임의 X축을 회전축으로 삼습니다. 이를 그대로 계산하면 다음이 됩니다.
+행렬식이 −1이면 그 사상이 방향을 뒤집으므로, 좌표계 손잡이 차이와 서로 상쇄됩니다. 따라서 `SimulatedRobotController.JogLoop`의 회전 분기는 축 교체만 하면 되고, 별도 부호 반전을 넣으면 오히려 방향이 뒤집힙니다.
+
+`CoordinateConverter.UnityRotationToRobotRPY`가 `-x,-y,-z` 반전을 하는 것은 쿼터니언 성분 재배치(`qz, -qx, qy, qw`)라는 다른 방식을 쓰기 때문이며, 이 경로와 요구사항이 다릅니다. **두 경로를 같은 규칙으로 다루면 안 됩니다.**
+
+#### `rotationAxis` 값
+
+Unity Revolute 관절은 앵커 프레임의 X축을 회전축으로 삼습니다. 6축 모두 `ArticulationBody.anchorRotation`이 Z축 −90°이므로 회전축은 다음과 같습니다.
 
 ```
 R(-90°, Z) · (1, 0, 0) = (0, -1, 0)
 ```
 
-즉 씬 설정값과 앵커에서 유도한 값이 **서로 다릅니다.** 어느 쪽이 맞는지는 실측으로 판단해야 합니다.
+이 값으로 설정했을 때 선형·회전 JOG가 모두 정상 동작합니다. 값이 틀리면 IK 내부 FK가 6축을 같은 축으로 돌리게 되어 Jacobian의 열이 거의 평행해지고, 팔이 부채 접히듯 안으로 말립니다.
 
-> 씬 파일은 이 저장소에 포함되지 않으므로 위 값은 프로젝트에서 직접 확인해야 합니다.
+> 씬 파일은 이 저장소에 포함되지 않으므로 위 값은 프로젝트에서 직접 설정해야 합니다.
 
 > **참고**: 위 항목은 SimOnly 모드에만 해당합니다. Mirror/Real 모드는 Unity IK 경로를 타지 않습니다.
 
