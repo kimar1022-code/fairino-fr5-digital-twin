@@ -2,7 +2,7 @@
 
 > Unity 시뮬레이터와 산업용 협동로봇 Fairino FR5를 실시간 동기화하는 디지털 트윈 시스템
 
-[![Unity](https://img.shields.io/badge/Unity-6000.0.64f1-black?logo=unity)](https://unity.com/)
+[![Unity](https://img.shields.io/badge/Unity-6000.4.3f1-black?logo=unity)](https://unity.com/)
 [![C#](https://img.shields.io/badge/C%23-.NET%20Framework-239120?logo=c-sharp&logoColor=white)](https://docs.microsoft.com/en-us/dotnet/csharp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Stable-green)]()
@@ -18,7 +18,7 @@
 | 항목 | 사양 |
 |---|---|
 | 로봇 모델 | Fairino FR5 (6-DOF 협동로봇) |
-| Unity 버전 | 6000.0.64f1 |
+| Unity 버전 | 6000.4.3f1 |
 | 언어 | C# (.NET Framework) |
 | SDK | Fairino C# SDK (XML-RPC) |
 | 통신 | Ethernet (192.168.58.2) |
@@ -77,7 +77,7 @@ flowchart TD
 
 ## 🛠️ Tech Stack
 
-- **Engine**: Unity 6000.0.64f1 (URP)
+- **Engine**: Unity 6000.4.3f1 (URP)
 - **Language**: C# (.NET Framework)
 - **Robotics**: Unity URDF Importer, ArticulationBody
 - **IK**: Damped Least Squares (DLS) Jacobian (직접 구현)
@@ -112,7 +112,7 @@ fairino-fr5-digital-twin/
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Unity 6000.0.64f1
+- Unity 6000.4.3f1
 - URDF Importer 패키지
 - Fairino FR5 + 펌웨어 (티치펜던트 Auto 모드)
 
