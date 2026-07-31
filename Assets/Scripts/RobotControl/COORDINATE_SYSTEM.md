@@ -147,25 +147,31 @@ return new Vector3(
 - **실로봇 모드(RealOnly)**: Fairino SDK가 정확한 IK 처리 ✅
 - **Mirror 모드**: `RobotManager.StartCartesianJog`가 early return으로 **실로봇만 JOG**하고, 시뮬은 `Update()`에서 실로봇 각도를 그대로 복사 → 완전 일치
 
-### ⚠️ 현재 알려진 제약 (SimOnly 한정)
+### 검증 현황 (SimOnly 한정)
 
 | 항목 | 상태 |
 |---|---|
-| X / Y / Z 선형 JOG | ✅ 동작 |
-| Rx / Ry / Rz 회전 JOG | ⚠️ **회전 방향이 로봇 규약과 반대** |
-| 씬의 `JointConfig.rotationAxis` | ⚠️ 6축 모두 `{1,0,0}`으로 오설정 |
+| X / Y / Z 선형 JOG | 동작 확인 (Unity 6000.4.3f1) |
+| Rx / Ry / Rz 회전 JOG | **미검증** |
+| 씬 `JointConfig.rotationAxis` | **검증 필요** — 아래 참조 |
 
-**회전 방향 반전**: Unity는 left-handed, FR5는 right-handed입니다. `CoordinateConverter.UnityRotationToRobotRPY`는 축 교체 후 부호를 반전하지만(`-x,-y,-z`), `SimulatedRobotController.JogLoop`의 회전 분기는 축 교체만 하고 이 반전을 하지 않습니다. **축 방향 자체는 이 문서의 규약과 일치**하며, 도는 방향만 뒤집혀 있습니다.
+#### 확인이 필요한 사항 두 가지
 
-**`rotationAxis` 오설정**: 올바른 값은 `{x:0, y:-1, z:0}`입니다. Unity의 Revolute 관절은 앵커 프레임의 X축을 중심으로 회전하는데, 6축 모두 `anchorRotation`이 Z축 −90°이므로 다음이 성립합니다.
+아래는 **코드 분석에서 나온 의심 사항이며, 실제 동작으로 확인된 내용이 아닙니다.** 회전 JOG를 사용하기 전에 검증하시기 바랍니다.
+
+**1. 회전 방향** — 이 문서 상단대로 Unity는 left-handed, FR5는 right-handed입니다. `CoordinateConverter.UnityRotationToRobotRPY`는 축 교체 후 부호를 반전하는데(`-x,-y,-z`), `SimulatedRobotController.JogLoop`의 회전 분기에는 그에 대응하는 처리가 보이지 않습니다. 축 방향 매핑 자체는 이 문서의 규약과 일치합니다. 실제로 방향이 뒤집히는지는 **확인되지 않았습니다.**
+
+**2. `rotationAxis` 값** — 씬에는 6축 모두 `{x:1, y:0, z:0}`으로 설정되어 있습니다. 한편 6축의 `ArticulationBody.anchorRotation`은 모두 Z축 −90°이고, Unity Revolute 관절은 앵커 프레임의 X축을 회전축으로 삼습니다. 이를 그대로 계산하면 다음이 됩니다.
 
 ```
 R(-90°, Z) · (1, 0, 0) = (0, -1, 0)
 ```
 
-이 값이 틀리면 IK 내부 FK가 6축을 같은 축으로 돌리게 되어 Jacobian의 열이 거의 평행해지고, 팔이 부채 접히듯 **안으로 말리는** 움직임이 나옵니다. 씬 파일은 저장소에 포함되지 않으므로 프로젝트에서 직접 수정하거나, `ArticulationBody.anchorRotation`에서 축을 자동 감지하는 폴백을 추가해야 합니다.
+즉 씬 설정값과 앵커에서 유도한 값이 **서로 다릅니다.** 어느 쪽이 맞는지는 실측으로 판단해야 합니다.
 
-> **주의**: 실로봇 연결 시에는 위 제약이 적용되지 않습니다. Mirror/Real 모드는 Unity IK 경로를 타지 않습니다.
+> 씬 파일은 이 저장소에 포함되지 않으므로 위 값은 프로젝트에서 직접 확인해야 합니다.
+
+> **참고**: 위 항목은 SimOnly 모드에만 해당합니다. Mirror/Real 모드는 Unity IK 경로를 타지 않습니다.
 
 ---
 
