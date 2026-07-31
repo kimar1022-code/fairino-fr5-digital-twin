@@ -33,10 +33,13 @@ namespace RobotControl
         public int maxIterations = 10;
 
         /// <summary>위치 에러 허용치 (m). 이 이하로 떨어지면 수렴으로 간주.</summary>
-        public float positionTolerance = 0.001f;   // 1mm
+        /// JOG 1프레임 이동량(속도×dt)보다 반드시 작아야 함.
+        /// 예: 10mm/s × 50% × 1/60s = 0.083mm 이므로 1mm면 즉시 수렴 판정되어 전혀 안 움직임.
+        public float positionTolerance = 0.00001f;  // 0.01mm
 
         /// <summary>회전 에러 허용치 (rad).</summary>
-        public float rotationTolerance = 0.01f;    // 약 0.57도
+        /// 위와 동일한 이유. 5deg/s × 50% × 1/60s = 0.00073rad 이므로 0.01rad면 즉시 수렴 판정됨.
+        public float rotationTolerance = 0.0001f;  // 약 0.0057도
 
         /// <summary>Jacobian 수치미분용 미세 각도 (rad).</summary>
         public float jacobianDelta = 0.001f;

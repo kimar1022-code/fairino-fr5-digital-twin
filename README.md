@@ -8,7 +8,7 @@
 | 항목 | 사양 |
 |---|---|
 | 로봇 모델 | Fairino FR5 (6-DOF 협동로봇) |
-| Unity 버전 | 6000.0.64f1 (URP) |
+| Unity 버전 | 6000.4.3f1 (URP) |
 | 언어 | C# (.NET Framework) |
 | SDK | Fairino C# SDK (XML-RPC, libfairino.dll) |
 | 통신 | Ethernet (192.168.58.2) |
@@ -23,8 +23,8 @@
 
 조인트·카티시안 제어
 - 6축 조인트 슬라이더 + 직접 입력 + 정밀 조정 (±1°, ±5°)
-- TCP 좌표(X/Y/Z/Rx/Ry/Rz) JOG 제어
-- 한계값 자동 클램핑
+- TCP 좌표(X/Y/Z/Rx/Ry/Rz) JOG 제어 — REAL/MIRROR는 SDK IK, SIM은 자체 DLS IK
+- 한계값 자동 클램핑, 명령 포즈 드리프트 제한 (50mm / 15°)
 
 그리퍼·포즈 관리
 - 0~100% 개폐, 속도/힘 조절 (Fairino DH 그리퍼)
@@ -79,7 +79,7 @@ fairino-fr5-digital-twin/
 
 ## 실행
 
-Unity 6000.0.64f1 + URDF Importer 패키지, 로봇은 티치펜던트 Auto 모드가 필요합니다.
+Unity 6000.4.3f1 + URDF Importer 패키지, 로봇은 티치펜던트 Auto 모드가 필요합니다.
 설치 과정은 [docs/SETUP.md](docs/SETUP.md)에 정리했습니다.
 
 네트워크는 로봇 `192.168.58.2` / PC `192.168.58.100` / 서브넷 `255.255.255.0` 기준입니다.
@@ -92,8 +92,9 @@ Unity 6000.0.64f1 + URDF Importer 패키지, 로봇은 티치펜던트 Auto 모�
 | MoveJ DescPose Zero 에러 | DescPose=(0,...) 시 IK 실패 | DescPose 인자 없는 오버로드 사용 |
 | 조인트 간 간섭 | targetJointAngles 미동기화 | 변경 안 하는 관절을 현재 실측값으로 동기화 |
 | Cartesian JOG Sim/Real 불일치 | URDF DLS IK ≠ SDK IK | Mirror 모드에서 Sim IK 비활성화 |
+| SIM 단독 Cartesian JOG 무반응 | 명령 포즈 미누적 + 수렴 허용치가 JOG 스텝보다 큼 | 명령 포즈 누적 구조로 변경, 허용치 하향 |
 
-마지막 이슈가 이 프로젝트에서 배운 가장 큰 것입니다. Sim 자체 IK를 쓰면 URDF와 실로봇의
+Cartesian JOG Sim/Real 불일치가 이 프로젝트에서 배운 가장 큰 것입니다. Sim 자체 IK를 쓰면 URDF와 실로봇의
 운동학이 미묘하게 달라 카티시안 JOG에서 Sim과 Real이 어긋납니다. Sim의 IK를 끄고
 Real의 결과를 매 프레임 따라가게 해서 시각적 동기화를 맞췄습니다.
 
@@ -108,6 +109,24 @@ void Update()
 }
 ```
 
+그 대가로 SIM 단독 모드의 Cartesian JOG는 검증 사각지대에 남았습니다. Mirror에서는
+`RobotManager.StartCartesianJog`가 early return으로 SDK에 위임하므로 Unity IK 경로가 실행되지
+않기 때문입니다. 실제로 눌러보니 로봇이 전혀 움직이지 않았고, 원인은 두 가지였습니다.
+
+```csharp
+// 1. 매 프레임 실제 TCP를 다시 읽어 명령이 누적되지 않음 (제자리 걸음)
+- Vector3 target = baseTf.InverseTransformPoint(tcpTransform.position) + dir * step;
++ cmdLocalPos += dir * step;   // 명령 포즈에만 누적, JOG 시작 시 1회 초기화
+
+// 2. 수렴 허용치 1mm가 프레임당 이동량 0.083mm보다 12배 커서 첫 반복에서 즉시 break
+- public float positionTolerance = 0.001f;
++ public float positionTolerance = 0.00001f;
+```
+
+명령 포즈가 도달 불가 방향으로 무한히 누적되면 관절이 한계까지 밀려 비틀린 자세로 버팁니다.
+그래서 실제 TCP 기준 위치 50mm / 자세 15° 이내로 제한했습니다(`maxCmdDriftM`, `maxCmdDriftDeg`).
+
+좌표계 규약과 검증 현황은 [Assets/Scripts/RobotControl/COORDINATE_SYSTEM.md](Assets/Scripts/RobotControl/COORDINATE_SYSTEM.md)에 정리했습니다.
 자세한 디버깅 과정은 [docs/DEVELOPMENT_LOG.md](docs/DEVELOPMENT_LOG.md)에 있습니다.
 
 ## 남은 작업
