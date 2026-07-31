@@ -35,8 +35,8 @@
 
 ### 🦾 조인트·카티시안 제어
 - 6축 조인트 슬라이더 + 직접 입력 + 정밀 조정 (±1°, ±5°)
-- TCP 좌표(X/Y/Z/Rx/Ry/Rz) JOG 제어
-- 한계값 자동 클램핑
+- TCP 좌표(X/Y/Z/Rx/Ry/Rz) JOG 제어 — REAL/MIRROR는 SDK IK, SIM은 DLS IK
+- 한계값 자동 클램핑 + 명령 포즈 드리프트 제한 (50mm / 15°)
 
 ### 🤏 그리퍼 & 포즈 관리
 - 0~100% 개폐, 속도/힘 조절 (Fairino DH 그리퍼)
@@ -159,47 +159,21 @@ void Update()
 
 Sim 자체 IK를 쓰면 URDF와 실로봇 운동학이 미묘하게 달라 카티시안 JOG에서 Sim/Real이 어긋났습니다. Sim의 IK를 비활성화하고 Real의 결과를 매 프레임 따라가게 함으로써 완벽한 시각적 동기화를 달성했습니다.
 
-### 🔧 SIM 모드 Cartesian JOG 수정
+### 🔧 그 대가: SIM 단독 Cartesian은 미구현으로 남았다
 
-위 "Sim은 Real의 그림자" 설계의 부작용으로, **SIM 단독 모드의 Cartesian JOG는 실제로 동작한 적이 없었습니다.** 실로봇 연결 시 `RobotManager.StartCartesianJog`가 early return으로 SDK에 위임하므로 Unity IK 경로가 실행되지 않아, 문제가 드러나지 않은 채 남아 있었습니다.
-
-**원인 1 — 명령 포즈가 누적되지 않음**
-
-매 프레임 실제 TCP 위치를 다시 읽어 목표를 `현재 + 스텝`으로 만들었습니다. 드라이브 지연이 목표에 되먹임되어 명령이 쌓이지 않고 제자리에 머뭅니다.
+Mirror에서 Sim IK를 끈 결과, **SIM 단독 모드의 Cartesian JOG는 한 번도 실행되지 않아** 결함이 드러나지 않았습니다. 원인은 두 가지였습니다.
 
 ```csharp
-// Before — 매 프레임 실제 위치 재읽기
-Vector3 currLocalPos = baseTf.InverseTransformPoint(tcpTransform.position);
-Vector3 targetLocalPos = currLocalPos + localDir * stepM;
+// 1. 매 프레임 실제 TCP를 다시 읽어 명령이 누적되지 않음 → 제자리 걸음
+- Vector3 target = baseTf.InverseTransformPoint(tcpTransform.position) + dir * step;
++ cmdLocalPos += dir * step;   // 명령 포즈에만 누적 (JOG 시작 시 1회 초기화)
 
-// After — 명령 포즈에만 누적 (JOG 시작 시 1회 초기화)
-cmdLocalPos += localDir * stepM;
+// 2. 수렴 허용치(1mm)가 프레임당 이동량(0.083mm)보다 12배 커서 즉시 break
+- public float positionTolerance = 0.001f;
++ public float positionTolerance = 0.00001f;
 ```
 
-**원인 2 — 수렴 허용치가 JOG 스텝보다 큼**
-
-```
-프레임당 이동량 = jogLinearSpeed(10) × speedMul(0.5) × dt(1/60) = 0.083mm
-positionTolerance = 1mm     ← 12배 큼
-```
-
-`Solve()`가 첫 반복에서 수렴으로 판정하고 각도를 그대로 반환했습니다. 허용치를 `0.01mm` / `0.0001rad`로 낮췄습니다.
-
-**안전장치**
-
-명령 포즈가 도달 불가 방향으로 무한 누적되면 관절이 한계까지 밀려 비틀린 자세로 버팁니다. 실제 TCP 기준 **위치 50mm / 자세 15°** 이내로 제한했습니다 (`maxCmdDriftM`, `maxCmdDriftDeg`).
-
-### ⚠️ SIM Cartesian의 알려진 제약
-
-| 항목 | 상태 |
-|---|---|
-| X / Y / Z 선형 JOG | ✅ 동작 확인 |
-| Rx / Ry / Rz 회전 JOG | ⚠️ **방향이 로봇 규약과 반대** |
-| 씬의 `JointConfig.rotationAxis` | ⚠️ 6축 모두 `{1,0,0}`으로 오설정 |
-
-**회전 방향 반전**: Unity는 left-handed, FR5는 right-handed입니다. `CoordinateConverter.UnityRotationToRobotRPY`는 축 교체 후 부호를 반전하지만(`-x,-y,-z`), `JogLoop`의 회전 분기는 축 교체만 하고 이 반전을 하지 않습니다. 축 방향 자체는 규약과 일치합니다.
-
-**`rotationAxis` 오설정**: 올바른 값은 `{x:0, y:-1, z:0}`입니다. Unity의 Revolute 관절은 앵커 프레임의 X축을 중심으로 도는데, 6축 모두 `anchorRotation`이 Z축 −90°이므로 `R(-90°,Z)·(1,0,0) = (0,-1,0)`이 됩니다. 씬 파일은 저장소에 포함되지 않으므로 프로젝트에서 직접 수정하거나, `ArticulationBody.anchorRotation`에서 축을 자동 감지하는 폴백을 추가해야 합니다.
+명령 포즈가 도달 불가 방향으로 무한 누적되면 관절이 한계까지 밀리므로, 실제 TCP 기준 **위치 50mm / 자세 15°** 이내로 제한했습니다 (`maxCmdDriftM`, `maxCmdDriftDeg`).
 
 ---
 
@@ -209,9 +183,12 @@ positionTolerance = 1mm     ← 12배 큼
 - [x] **Phase 2**: DLS Jacobian IK 솔버 구현
 - [x] **Phase 3**: Mirror 동기화 패턴 설계
 - [x] **Phase 4**: UI 자동 생성 + Pose Slot
-- [ ] **Phase 5**: J5 시각적 불일치 해결
-- [ ] **Phase 6**: 궤적 녹화/재생 기능
-- [ ] **Phase 7**: 충돌 검출 시스템
+- [x] **Phase 5**: SIM 단독 Cartesian JOG 동작 (X/Y/Z 선형 확인)
+- [ ] **Phase 6**: Rx/Ry/Rz 회전 방향 반전 수정 — Unity(left-handed) ↔ FR5(right-handed) 부호 반전이 `JogLoop` 회전 분기에 누락
+- [ ] **Phase 7**: `rotationAxis` 자동 감지 — 씬 값 대신 `ArticulationBody.anchorRotation`에서 유도 (현재 씬은 6축 모두 `{1,0,0}`로 오설정, 올바른 값은 `{0,-1,0}`)
+- [ ] **Phase 8**: J5 시각적 불일치 해결
+- [ ] **Phase 9**: 궤적 녹화/재생 기능
+- [ ] **Phase 10**: 충돌 검출 시스템
 
 ---
 
