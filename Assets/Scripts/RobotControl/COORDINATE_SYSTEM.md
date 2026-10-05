@@ -143,7 +143,7 @@ return new Vector3(
 
 시뮬레이션의 Cartesian JOG는 자체 DLS IK 솔버(`InverseKinematicsSolver`)로 동작합니다. 실로봇은 Fairino SDK가 펌웨어에서 IK를 처리하므로, 두 경로는 **서로 다른 운동학 구현**입니다.
 
-- **시뮬 모드(SimOnly)**: Unity DLS IK가 처리 — X/Y/Z 선형 JOG 동작 확인됨
+- **시뮬 모드(SimOnly)**: Unity DLS IK가 처리 - X/Y/Z 선형 JOG 동작 확인됨
 - **실로봇 모드(RealOnly)**: Fairino SDK가 정확한 IK 처리 ✅
 - **Mirror 모드**: `RobotManager.StartCartesianJog`가 early return으로 **실로봇만 JOG**하고, 시뮬은 `Update()`에서 실로봇 각도를 그대로 복사 → 완전 일치
 
@@ -179,7 +179,7 @@ Unity Revolute 관절은 앵커 프레임의 X축을 회전축으로 삼습니�
 R(-90°, Z) · (1, 0, 0) = (0, -1, 0)
 ```
 
-이 값으로 설정했을 때 선형·회전 JOG가 모두 정상 동작합니다. 값이 틀리면 IK 내부 FK가 6축을 같은 축으로 돌리게 되어 Jacobian의 열이 거의 평행해지고, 팔이 부채 접히듯 안으로 말립니다.
+이 값으로 설정했을 때 선형 · 회전 JOG가 모두 정상 동작합니다. 값이 틀리면 IK 내부 FK가 6축을 같은 축으로 돌리게 되어 Jacobian의 열이 거의 평행해지고, 팔이 부채 접히듯 안으로 말립니다.
 
 > 씬 파일은 이 저장소에 포함되지 않으므로 위 값은 프로젝트에서 직접 설정해야 합니다.
 

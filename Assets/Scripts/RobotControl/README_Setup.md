@@ -1,6 +1,6 @@
 # 🤖 Fairino FR5 Unity 통합 제어 시스템 (최종판 + IK)
 
-**시뮬레이션 + 실로봇 완전 동일 동작** — 이제 Unity 시뮬에서도 **DLS IK 기반의 정확한 Cartesian JOG** 가능!
+**시뮬레이션 + 실로봇 완전 동일 동작** - 이제 Unity 시뮬에서도 **DLS IK 기반의 정확한 Cartesian JOG** 가능!
 
 ---
 

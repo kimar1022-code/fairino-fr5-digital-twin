@@ -21,12 +21,12 @@
 - REAL: 실로봇 단독 제어
 - MIRROR: 시뮬 + 실로봇 동시 동기화 (Sim이 Real을 매 프레임 추종)
 
-조인트·카티시안 제어
+조인트 · 카티시안 제어
 - 6축 조인트 슬라이더 + 직접 입력 + 정밀 조정 (±1°, ±5°)
-- TCP 좌표(X/Y/Z/Rx/Ry/Rz) JOG 제어 — REAL/MIRROR는 SDK IK, SIM은 자체 DLS IK
+- TCP 좌표(X/Y/Z/Rx/Ry/Rz) JOG 제어 - REAL/MIRROR는 SDK IK, SIM은 자체 DLS IK
 - 한계값 자동 클램핑, 명령 포즈 드리프트 제한 (50mm / 15°)
 
-그리퍼·포즈 관리
+그리퍼 · 포즈 관리
 - 0~100% 개폐, 속도/힘 조절 (Fairino DH 그리퍼)
 - 홈 포즈 저장/복귀, 3개 포즈 슬롯
 
