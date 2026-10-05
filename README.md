@@ -17,18 +17,18 @@
 ## 기능
 
 제어 모드
-- SIM: 시뮬레이션 단독 (실로봇 없이 테스트)
-- REAL: 실로봇 단독 제어
-- MIRROR: 시뮬 + 실로봇 동시 동기화 (Sim이 Real을 매 프레임 추종)
+- SIM : 시뮬레이션 단독 (실로봇 없이 테스트)
+- REAL : 실로봇 단독 제어
+- MIRROR : 시뮬 + 실로봇 동시 동기화 (Sim이 Real을 매 프레임 추종)
 
 조인트 · 카티시안 제어
 - 6축 조인트 슬라이더 + 직접 입력 + 정밀 조정 (±1°, ±5°)
-- TCP 좌표(X/Y/Z/Rx/Ry/Rz) JOG 제어 - REAL/MIRROR는 SDK IK, SIM은 자체 DLS IK
+- TCP 좌표(X / Y / Z / Rx / Ry / Rz) JOG 제어 - REAL / MIRROR는 SDK IK, SIM은 자체 DLS IK
 - 한계값 자동 클램핑, 명령 포즈 드리프트 제한 (50mm / 15°)
 
 그리퍼 · 포즈 관리
-- 0~100% 개폐, 속도/힘 조절 (Fairino DH 그리퍼)
-- 홈 포즈 저장/복귀, 3개 포즈 슬롯
+- 0~100% 개폐, 속도 / 힘 조절 (Fairino DH 그리퍼)
+- 홈 포즈 저장 / 복귀, 3개 포즈 슬롯
 
 ## 구조
 
@@ -55,9 +55,9 @@ flowchart TD
 설계에서 가장 중요한 결정은 "Mirror 모드에서 Sim은 Real의 그림자"라는 것입니다.
 Sim의 자체 IK를 쓰지 않고 Real의 관절 실측값을 매 프레임 그대로 재생합니다. 이유는 아래 트러블슈팅에.
 
-- IK: Damped Least Squares(DLS) Jacobian 직접 구현
-- URDF: Unity URDF Importer + ArticulationBody
-- 통신: XML-RPC (CookComputing.XmlRpcV2)
+- IK : Damped Least Squares(DLS) Jacobian 직접 구현
+- URDF : Unity URDF Importer + ArticulationBody
+- 통신 : XML-RPC (CookComputing.XmlRpcV2)
 
 ## 파일 구성
 
@@ -91,10 +91,10 @@ Unity 6000.4.3f1 + URDF Importer 패키지, 로봇은 티치펜던트 Auto 모�
 | rc=14 joint command error | Tool/Wobj 불일치 | Connect 시 자동 감지 |
 | MoveJ DescPose Zero 에러 | DescPose=(0,...) 시 IK 실패 | DescPose 인자 없는 오버로드 사용 |
 | 조인트 간 간섭 | targetJointAngles 미동기화 | 변경 안 하는 관절을 현재 실측값으로 동기화 |
-| Cartesian JOG Sim/Real 불일치 | URDF DLS IK ≠ SDK IK | Mirror 모드에서 Sim IK 비활성화 |
+| Cartesian JOG Sim / Real 불일치 | URDF DLS IK ≠ SDK IK | Mirror 모드에서 Sim IK 비활성화 |
 | SIM 단독 Cartesian JOG 무반응 | 명령 포즈 미누적 + 수렴 허용치가 JOG 스텝보다 큼 | 명령 포즈 누적 구조로 변경, 허용치 하향 |
 
-Cartesian JOG Sim/Real 불일치가 이 프로젝트에서 배운 가장 큰 것입니다. Sim 자체 IK를 쓰면 URDF와 실로봇의
+Cartesian JOG Sim / Real 불일치가 이 프로젝트에서 배운 가장 큰 것입니다. Sim 자체 IK를 쓰면 URDF와 실로봇의
 운동학이 미묘하게 달라 카티시안 JOG에서 Sim과 Real이 어긋납니다. Sim의 IK를 끄고
 Real의 결과를 매 프레임 따라가게 해서 시각적 동기화를 맞췄습니다.
 
@@ -132,7 +132,7 @@ void Update()
 ## 남은 작업
 
 - J5 시각적 불일치 해결
-- 궤적 녹화/재생 기능 → [v2](https://github.com/kimar1022-code/fairino-fr5-digital-twin-v2)에서 진행 중
+- 궤적 녹화 / 재생 기능 → [v2](https://github.com/kimar1022-code/fairino-fr5-digital-twin-v2)에서 진행 중
 - 충돌 검출
 
 ## 참고 자료
