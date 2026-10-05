@@ -32,24 +32,7 @@
 
 ## 구조
 
-```mermaid
-flowchart TD
-    UI[RobotControlUI<br/>UI 자동 생성]
-    Mgr[RobotManager<br/>Mode: Sim/Real/Mirror]
-    Sim[SimulatedRobotController<br/>Unity ArticulationBody]
-    Real[FairinoRobotController<br/>FR5 SDK Wrapper]
-    IK[InverseKinematicsSolver<br/>DLS Jacobian]
-    Robot[(Fairino FR5<br/>192.168.58.2)]
-
-    UI --> Mgr
-    Mgr -->|SIM| Sim
-    Mgr -->|REAL| Real
-    Mgr -->|MIRROR| Sim
-    Mgr -->|MIRROR| Real
-    Sim --> IK
-    Real <-->|"XML-RPC Port 20003<br/>명령 / Joint Feedback"| Robot
-    Real -.->|Mirror Sync| Sim
-```
+<img src="docs/images/architecture.png" alt="디지털 트윈 구성도" width="100%" />
 
 설계에서 가장 중요한 결정은 "Mirror 모드에서 Sim은 Real의 그림자"라는 것입니다.
 Sim의 자체 IK를 쓰지 않고 Real의 관절 실측값을 매 프레임 그대로 재생합니다. 이유는 아래 트러블슈팅에.
