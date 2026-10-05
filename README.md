@@ -5,7 +5,7 @@
 
 <!-- 시각 자료 추가 예정: docs/images/demo.gif -->
 
-| 항목 <img src="docs/images/layout/w100.png" width="100%" height="1"> | 사양 <img src="docs/images/layout/w300.png" width="100%" height="1"> |
+| 항목 <img src="docs/images/layout/w600.png" width="100%" height="1"> | 사양 <img src="docs/images/layout/w2400.png" width="100%" height="1"> |
 |---|---|
 | 로봇 모델 | Fairino FR5 (6-DOF 협동로봇) |
 | Unity 버전 | 6000.4.3f1 (URP) |
@@ -86,7 +86,7 @@ Unity 6000.4.3f1 + URDF Importer 패키지, 로봇은 티치펜던트 Auto 모�
 
 ## 트러블슈팅
 
-| 이슈 <img src="docs/images/layout/w200.png" width="100%" height="1"> | 원인 <img src="docs/images/layout/w400.png" width="100%" height="1"> | 해결 <img src="docs/images/layout/w300.png" width="100%" height="1"> |
+| 이슈 <img src="docs/images/layout/w750.png" width="100%" height="1"> | 원인 <img src="docs/images/layout/w1200.png" width="100%" height="1"> | 해결 <img src="docs/images/layout/w1050.png" width="100%" height="1"> |
 |---|---|---|
 | rc=14 joint command error | Tool/Wobj 불일치 | Connect 시 자동 감지 |
 | MoveJ DescPose Zero 에러 | DescPose=(0,...) 시 IK 실패 | DescPose 인자 없는 오버로드 사용 |
